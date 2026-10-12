@@ -31,6 +31,7 @@ struct NotchShape: Shape {
 
 struct NotchView: View {
     let model: NotchModel
+    @Namespace private var artworkNamespace
 
     var body: some View {
         let expanded = model.isExpanded
@@ -41,10 +42,10 @@ struct NotchView: View {
 
         ZStack(alignment: .top) {
             if expanded {
-                ExpandedView(model: model)
-                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
+                ExpandedView(model: model, namespace: artworkNamespace)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .top)))
             } else {
-                CollapsedView(model: model)
+                CollapsedView(model: model, namespace: artworkNamespace)
                     .transition(.opacity)
             }
         }
@@ -54,7 +55,7 @@ struct NotchView: View {
         .clipShape(shape)
         .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 14, y: 6)
         .offset(x: expanded ? 0 : model.collapsedOffsetX)
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: model.leftEarWidth)
+        .animation(.spring(response: 0.24, dampingFraction: 0.62), value: model.leftEarWidth)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
@@ -65,13 +66,14 @@ struct NotchView: View {
 
 private struct CollapsedView: View {
     let model: NotchModel
+    let namespace: Namespace.ID
 
     var body: some View {
         HStack(spacing: 0) {
-            MediaEar(nowPlaying: model.nowPlaying, size: model.notchSize.height - 12)
+            // Not clipped, so the artwork can travel outside the ear while it morphs.
+            MediaEar(nowPlaying: model.nowPlaying, size: model.notchSize.height - 12, namespace: namespace)
                 .frame(width: model.leftEarWidth)
                 .opacity(model.nowPlaying.isPlaying ? 1 : 0)
-                .clipped()
             Color.clear.frame(width: model.notchSize.width)
             VolumeIcon(audio: model.audio)
                 .font(.system(size: 13, weight: .medium))
@@ -84,6 +86,7 @@ private struct CollapsedView: View {
 private struct MediaEar: View {
     let nowPlaying: NowPlayingController
     let size: CGFloat
+    let namespace: Namespace.ID
 
     var body: some View {
         Group {
@@ -91,8 +94,6 @@ private struct MediaEar: View {
                 Image(nsImage: artwork)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             } else {
                 Image(systemName: "waveform")
                     .font(.system(size: 13, weight: .semibold))
@@ -100,6 +101,27 @@ private struct MediaEar: View {
                     .symbolEffect(.variableColor.iterative, isActive: nowPlaying.isPlaying)
             }
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+        .clipShape(ArtworkShape())
+        // Only pair with the expanded artwork while the ear is showing; otherwise the big
+        // artwork would grow out of a zero-width ear.
+        .matchedGeometryEffect(id: nowPlaying.isPlaying ? ArtworkMorph.id : ArtworkMorph.hiddenID, in: namespace)
+        .frame(width: size, height: size)
+    }
+}
+
+/// Ids for the artwork that morphs between the left ear and the expanded panel.
+private enum ArtworkMorph {
+    static let id = "artwork"
+    static let hiddenID = "artwork.hidden"
+}
+
+/// Rounded square whose corner radius follows its size, so the corners stay in
+/// proportion while the artwork morphs (5pt in the ear, 12pt expanded).
+private struct ArtworkShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let radius = min(max(rect.width * 0.12, 5), 12)
+        return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect)
     }
 }
 
@@ -123,13 +145,14 @@ private struct VolumeIcon: View {
 
 private struct ExpandedView: View {
     let model: NotchModel
+    let namespace: Namespace.ID
 
     var body: some View {
         VStack(spacing: 0) {
             header
                 .frame(height: model.notchSize.height)
             HStack(alignment: .top, spacing: 16) {
-                MediaSection(nowPlaying: model.nowPlaying)
+                MediaSection(nowPlaying: model.nowPlaying, namespace: namespace)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 Rectangle()
                     .fill(.white.opacity(0.1))
@@ -197,13 +220,16 @@ private struct SourceApp {
 
 private struct MediaSection: View {
     let nowPlaying: NowPlayingController
+    let namespace: Namespace.ID
 
     var body: some View {
         if let info = nowPlaying.info {
             HStack(spacing: 14) {
                 artwork
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    .clipShape(ArtworkShape())
+                    .matchedGeometryEffect(id: ArtworkMorph.id, in: namespace)
                     .frame(width: 100, height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .onTapGesture { nowPlaying.openSourceApp() }
                     .help("Open the app that's playing")
 

@@ -55,7 +55,7 @@ final class NotchModel {
 
     func setExpanded(_ expanded: Bool) {
         guard expanded != isExpanded else { return }
-        withAnimation(.spring(response: 0.38, dampingFraction: expanded ? 0.78 : 0.9)) {
+        withAnimation(.spring(response: 0.24, dampingFraction: expanded ? 0.62 : 0.9)) {
             isExpanded = expanded
         }
     }

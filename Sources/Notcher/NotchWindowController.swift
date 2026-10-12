@@ -46,8 +46,8 @@ final class NotchWindowController {
     private var collapseWork: DispatchWorkItem?
     private var isShown = false
 
-    private static let expandDelay: TimeInterval = 0.1
-    private static let collapseDelay: TimeInterval = 0.25
+    private static let expandDelay: TimeInterval = 0.03
+    private static let collapseDelay: TimeInterval = 0.03
 
     init(model: NotchModel) {
         self.model = model
