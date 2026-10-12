@@ -48,6 +48,7 @@ struct NotchView: View {
                 CollapsedView(model: model, namespace: artworkNamespace)
                     .transition(.opacity)
             }
+            NotchCornerIcon(model: model)
         }
         .padding(.horizontal, topRadius)
         .frame(width: size.width, height: size.height, alignment: .top)
@@ -55,7 +56,7 @@ struct NotchView: View {
         .clipShape(shape)
         .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 14, y: 6)
         .offset(x: expanded ? 0 : model.collapsedOffsetX)
-        .animation(.spring(response: 0.24, dampingFraction: 0.62), value: model.leftEarWidth)
+        .animation(NotchModel.expandAnimation, value: model.nowPlaying.isPlaying)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
@@ -73,11 +74,49 @@ private struct CollapsedView: View {
             // Not clipped, so the artwork can travel outside the ear while it morphs.
             MediaEar(nowPlaying: model.nowPlaying, size: model.notchSize.height - 12, namespace: namespace)
                 .frame(width: model.leftEarWidth)
-                .opacity(model.nowPlaying.isPlaying ? 1 : 0)
+                .opacity(model.nowPlaying.isPlaying && !model.isClosing ? 1 : 0)
             Color.clear.frame(width: model.notchSize.width)
-            VolumeIcon(audio: model.audio)
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: model.rightEarWidth)
+            // The right ear's icon is drawn by NotchCornerIcon.
+            Color.clear.frame(width: model.rightEarWidth)
+        }
+        .frame(height: model.notchSize.height)
+    }
+}
+
+/// The icon just right of the notch: the volume icon when collapsed, the settings gear when
+/// expanded. It lives outside the collapsed/expanded views, so one turns into the other in
+/// place instead of the gear shrinking away into the notch with the expanded view.
+private struct NotchCornerIcon: View {
+    let model: NotchModel
+
+    static let gearSlotWidth: CGFloat = 18
+    static let gearLeadingGap: CGFloat = 4
+    /// Room the expanded header leaves free for the gear.
+    static let reservedWidth = gearLeadingGap + gearSlotWidth + 8
+
+    var body: some View {
+        let expanded = model.isExpanded
+        let side = max((NotchModel.expandedWidth - model.notchSize.width) / 2, 0)
+
+        HStack(spacing: 0) {
+            Color.clear.frame(width: expanded ? side : model.leftEarWidth)
+            Color.clear.frame(width: model.notchSize.width)
+            ZStack {
+                if expanded {
+                    SettingsMenu()
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .transition(.blurReplace)
+                } else {
+                    VolumeIcon(audio: model.audio)
+                        .font(.system(size: 13, weight: .medium))
+                        .transition(.blurReplace)
+                }
+            }
+            .frame(width: expanded ? Self.gearSlotWidth : model.rightEarWidth)
+            .padding(.leading, expanded ? Self.gearLeadingGap : 0)
+            .opacity(model.isClosing ? 0 : 1)
+            Spacer(minLength: 0)
         }
         .frame(height: model.notchSize.height)
     }
@@ -191,13 +230,15 @@ private struct ExpandedView: View {
             Spacer(minLength: 0)
 
             HStack {
+                Spacer(minLength: 0)
                 if let device = model.audio.currentDevice {
                     Text(device.name).lineLimit(1)
                 }
             }
-            .padding(.leading, 10)
+            // The gear next to the notch is drawn by NotchCornerIcon.
+            .padding(.leading, NotchCornerIcon.reservedWidth)
             .padding(.trailing, 18)
-            .frame(width: side, alignment: .trailing)
+            .frame(width: side)
         }
         .font(.system(size: 11, weight: .medium))
         .foregroundStyle(.white.opacity(0.55))
@@ -440,6 +481,25 @@ struct BarSlider: View {
         .opacity(isEnabled ? 1 : 0.35)
     }
 }
+
+private struct SettingsMenu: View {
+    var body: some View {
+        Menu {
+            Toggle("Launch at Login", isOn: Binding(
+                get: { LaunchAtLogin.isEnabled },
+                set: { LaunchAtLogin.setEnabled($0) }
+            ))
+            Divider()
+            Button("Quit Notcher") { NSApp.terminate(nil) }
+        } label: {
+            Image(systemName: "gearshape.fill")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)   // no dropdown arrow
+        .fixedSize()              // otherwise the Menu grows to fill the row
+    }
+}
+
 
 struct NotchButtonStyle: ButtonStyle {
     var padding: CGFloat = 6

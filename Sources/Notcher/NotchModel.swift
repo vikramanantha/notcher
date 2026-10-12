@@ -13,6 +13,8 @@ final class NotchModel {
     /// Size of the physical notch, from the screen's safe area.
     var notchSize = CGSize(width: 200, height: 32)
     private(set) var isExpanded = false
+    /// Set while quitting: the ears shrink away so the pill slides back into the notch.
+    private(set) var isClosing = false
 
     // Collapsed pill
     static let collapsedTopRadius: CGFloat = 6
@@ -23,6 +25,10 @@ final class NotchModel {
     static let expandedBodyHeight: CGFloat = 150
     static let expandedWidth: CGFloat = 580
 
+    // Shared springs, so opening, collapsing and quitting all feel the same.
+    static let expandAnimation = Animation.spring(response: 0.24, dampingFraction: 0.62)
+    static let collapseAnimation = Animation.spring(response: 0.24, dampingFraction: 0.9)
+
     init(audio: AudioController, nowPlaying: NowPlayingController) {
         self.audio = audio
         self.nowPlaying = nowPlaying
@@ -30,8 +36,8 @@ final class NotchModel {
 
     var earWidth: CGFloat { notchSize.height + 12 }
     /// The media ear shrinks away when nothing is playing.
-    var leftEarWidth: CGFloat { nowPlaying.isPlaying ? earWidth : 0 }
-    var rightEarWidth: CGFloat { earWidth }
+    var leftEarWidth: CGFloat { nowPlaying.isPlaying && !isClosing ? earWidth : 0 }
+    var rightEarWidth: CGFloat { isClosing ? 0 : earWidth }
 
     /// Size of the black shape, including the flared top corners on each side.
     var collapsedSize: CGSize {
@@ -55,8 +61,20 @@ final class NotchModel {
 
     func setExpanded(_ expanded: Bool) {
         guard expanded != isExpanded else { return }
-        withAnimation(.spring(response: 0.24, dampingFraction: expanded ? 0.62 : 0.9)) {
+        withAnimation(expanded ? Self.expandAnimation : Self.collapseAnimation) {
             isExpanded = expanded
+        }
+    }
+
+    /// Collapses (if open) and shrinks into the notch, then calls `completion`.
+    /// Uses the collapse spring, not the bouncy expand one: overshooting would give the ears
+    /// negative widths.
+    func close(completion: @escaping () -> Void) {
+        withAnimation(Self.collapseAnimation) {
+            isExpanded = false
+            isClosing = true
+        } completion: {
+            completion()
         }
     }
 }

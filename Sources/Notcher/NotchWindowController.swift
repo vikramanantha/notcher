@@ -44,10 +44,13 @@ final class NotchWindowController {
     private var pollTimer: Timer?
     private var expandWork: DispatchWorkItem?
     private var collapseWork: DispatchWorkItem?
-    private var isShown = false
+    private(set) var isShown = false
 
     private static let expandDelay: TimeInterval = 0.03
     private static let collapseDelay: TimeInterval = 0.03
+
+    private var isMenuOpen = false
+
 
     init(model: NotchModel) {
         self.model = model
@@ -60,6 +63,16 @@ final class NotchWindowController {
         center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
         }
+        center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.isMenuOpen = true }
+        }
+        center.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.isMenuOpen = false
+                self?.evaluateMouse()   // collapse now if the cursor ended up elsewhere
+            }
+        }
+
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
             workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -152,7 +165,7 @@ final class NotchWindowController {
     }
 
     private func evaluateMouse() {
-        guard isShown else { return }
+        guard isShown, !isMenuOpen, !model.isClosing else { return }
         let mouse = NSEvent.mouseLocation
         let inside = (model.isExpanded ? expandedRect : collapsedRect).contains(mouse)
         let dragging = NSEvent.pressedMouseButtons != 0
@@ -183,6 +196,7 @@ final class NotchWindowController {
                 schedule(&collapseWork, after: Self.collapseDelay) { [weak self] in
                     guard let self else { return }
                     self.collapseWork = nil
+                    guard !self.isMenuOpen else { return }
                     guard !self.expandedRect.contains(NSEvent.mouseLocation) else { return }
                     self.model.setExpanded(false)
                     self.setInteractive(false)

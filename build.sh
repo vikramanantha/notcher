@@ -18,6 +18,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$FRAMEWORK/Versions/A/
 cp "$BIN" "$APP/Contents/MacOS/Notcher"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp "$ADAPTER/bin/mediaremote-adapter.pl" "$APP/Contents/Resources/"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 
 echo "==> Building MediaRemoteAdapter.framework"
 # The framework is loaded by /usr/bin/perl at runtime, never linked into the app.
@@ -54,5 +55,7 @@ echo "==> Done: $APP"
 
 if [[ "${1:-}" == "--run" ]]; then
   pkill -x Notcher 2>/dev/null || true
+  # Notcher animates closed before quitting, so wait for it to exit (up to ~3s).
+  for _ in {1..30}; do pgrep -x Notcher >/dev/null || break; sleep 0.1; done
   open "$APP"
 fi

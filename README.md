@@ -13,7 +13,7 @@ Requires macOS 14+ and Xcode command line tools.
 ./build.sh --run    # builds, then (re)launches it
 ```
 
-The app has no Dock icon. Use the laptop icon in the menu bar to quit it or turn on Launch at Login. Launch at Login registers the app from wherever it is, so copy `build/Notcher.app` to `/Applications` first.
+The app has no Dock icon. Hover over the notch and use the gear next to it to quit or turn on Launch at Login. Launch at Login registers the app from wherever it is, so copy `build/Notcher.app` to `/Applications` first.
 
 ## Layout
 
