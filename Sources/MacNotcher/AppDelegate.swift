@@ -1,0 +1,67 @@
+import AppKit
+import ServiceManagement
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var model: NotchModel!
+    private var windowController: NotchWindowController!
+    private var statusItem: NSStatusItem!
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model = NotchModel(audio: AudioController(), nowPlaying: NowPlayingController())
+        windowController = NotchWindowController(model: model)
+        model.nowPlaying.start()
+        setUpStatusItem()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        model.nowPlaying.stop()
+    }
+
+    // MARK: - Menu bar icon
+
+    private func setUpStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = NSImage(systemSymbolName: "macbook", accessibilityDescription: "Mac Notcher")
+
+        let menu = NSMenu()
+        let title = NSMenuItem(title: "Mac Notcher", action: nil, keyEquivalent: "")
+        title.isEnabled = false
+        menu.addItem(title)
+        menu.addItem(.separator())
+
+        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin(_:)), keyEquivalent: "")
+        login.target = self
+        menu.addItem(login)
+        menu.addItem(.separator())
+
+        let quit = NSMenuItem(title: "Quit Mac Notcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(quit)
+
+        menu.delegate = self
+        statusItem.menu = menu
+    }
+
+    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Couldn't change Launch at Login"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+        }
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let enabled = SMAppService.mainApp.status == .enabled
+        menu.items.first { $0.action == #selector(toggleLaunchAtLogin(_:)) }?.state = enabled ? .on : .off
+    }
+}
