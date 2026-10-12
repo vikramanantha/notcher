@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Resources/AppIcon.png" alt="Notcher app icon" width="160">
+</p>
+
 # Notcher
 
 Turns the MacBook notch into a little media + volume widget. What's playing sits on the left of the notch and the audio output on the right. Hover over it to get playback controls, a volume slider and an output device picker.
