@@ -1,4 +1,4 @@
-# Mac Notcher (name is WIP)
+# Notcher
 Vikram Anantha
 Oct 2026
 

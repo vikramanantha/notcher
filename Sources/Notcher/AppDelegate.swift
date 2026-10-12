@@ -6,12 +6,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: NotchModel!
     private var windowController: NotchWindowController!
     private var statusItem: NSStatusItem!
+    private var sigtermSource: DispatchSourceSignal?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = NotchModel(audio: AudioController(), nowPlaying: NowPlayingController())
         windowController = NotchWindowController(model: model)
         model.nowPlaying.start()
         setUpStatusItem()
+        quitCleanlyOnSIGTERM()
+    }
+
+    /// `kill`/`pkill` would otherwise skip applicationWillTerminate and orphan the adapter process.
+    private func quitCleanlyOnSIGTERM() {
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        source.setEventHandler { NSApp.terminate(nil) }
+        source.resume()
+        sigtermSource = source
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -22,10 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "macbook", accessibilityDescription: "Mac Notcher")
+        statusItem.button?.image = NSImage(systemSymbolName: "macbook", accessibilityDescription: "Notcher")
 
         let menu = NSMenu()
-        let title = NSMenuItem(title: "Mac Notcher", action: nil, keyEquivalent: "")
+        let title = NSMenuItem(title: "Notcher", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(.separator())
@@ -35,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(login)
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit Mac Notcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Notcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
         menu.delegate = self

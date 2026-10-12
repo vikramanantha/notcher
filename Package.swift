@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "MacNotcher",
+    name: "Notcher",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "MacNotcher",
-            path: "Sources/MacNotcher",
+            name: "Notcher",
+            path: "Sources/Notcher",
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]

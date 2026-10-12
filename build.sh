@@ -1,21 +1,21 @@
 #!/bin/bash
-# Builds build/MacNotcher.app: the Swift app plus the bundled mediaremote-adapter.
+# Builds build/Notcher.app: the Swift app plus the bundled mediaremote-adapter.
 # Usage: ./build.sh [--run]
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP=build/MacNotcher.app
+APP=build/Notcher.app
 ADAPTER=Vendor/mediaremote-adapter
 FRAMEWORK="$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
 
 echo "==> Building Swift app"
 swift build -c release
-BIN="$(swift build -c release --show-bin-path)/MacNotcher"
+BIN="$(swift build -c release --show-bin-path)/Notcher"
 
 echo "==> Assembling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$FRAMEWORK/Versions/A/Resources"
-cp "$BIN" "$APP/Contents/MacOS/MacNotcher"
+cp "$BIN" "$APP/Contents/MacOS/Notcher"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp "$ADAPTER/bin/mediaremote-adapter.pl" "$APP/Contents/Resources/"
 
@@ -53,6 +53,6 @@ codesign --force --sign - "$APP"
 echo "==> Done: $APP"
 
 if [[ "${1:-}" == "--run" ]]; then
-  pkill -x MacNotcher 2>/dev/null || true
+  pkill -x Notcher 2>/dev/null || true
   open "$APP"
 fi
